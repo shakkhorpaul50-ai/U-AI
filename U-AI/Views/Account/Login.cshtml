@@ -1,0 +1,24 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+<div class="auth-shell">
+    <div class="auth-card">
+        <div class="auth-brand">U-AI</div>
+        <h1 class="auth-title">Welcome back</h1>
+        <form method="post" asp-action="Login">
+            <input type="hidden" asp-for="ReturnUrl" />
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+            <label class="form-label" for="Email">Email</label>
+            <input class="form-control" id="Email" asp-for="Email" autocomplete="username" required />
+            <label class="form-label mt-3" for="Password">Password</label>
+            <input class="form-control" id="Password" type="password" asp-for="Password" autocomplete="current-password" required />
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" asp-for="RememberMe" id="RememberMe" />
+                <label class="form-check-label small" for="RememberMe">Keep me signed in</label>
+            </div>
+            <button class="btn btn-accent w-100 mt-4" type="submit">Sign in</button>
+        </form>
+        <p class="auth-alt">No account? <a asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl">Create one</a></p>
+    </div>
+</div>

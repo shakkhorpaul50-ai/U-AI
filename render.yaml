@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: u-ai-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./U-AI/Dockerfile
+    dockerContext: ./
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: Model__Path
+        value: /app/model
+      - key: Model__Threads
+        value: "1"

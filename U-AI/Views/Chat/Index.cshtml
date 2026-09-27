@@ -1,0 +1,104 @@
+@model IReadOnlyList<ModeCatalog.Mode>
+@{
+    ViewData["Title"] = "Chat";
+    var sessions = (IReadOnlyList<SessionSummary>)(ViewData["Sessions"] ?? Array.Empty<SessionSummary>());
+    var turns = (IReadOnlyList<TurnDto>)(ViewData["Turns"] ?? Array.Empty<TurnDto>());
+    var activeId = (long)(ViewData["ActiveId"] ?? 0L);
+    var activeMode = (string)(ViewData["ActiveMode"] ?? "english_chat");
+    var busy = (int)(ViewData["Busy"] ?? 0);
+    var antiForgery = Context.RequestServices
+        .GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>()
+        .GetAndStoreTokens(Context).RequestToken!;
+
+    var modeOptions = Model.Select(m => new { key = m.Key, label = m.Label, hint = m.Hint }).ToList();
+}
+
+<div class="chat-shell" id="chatShell"
+     data-session="@activeId"
+     data-antiforgery="@antiForgery"
+     data-waiting="@busy">
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+            <a class="brand" asp-controller="Chat" asp-action="Index">U-AI</a>
+            <button class="icon-btn only-mobile" id="closeSidebar" aria-label="Close menu">&times;</button>
+        </div>
+
+        <form method="post" asp-action="NewSession" class="new-chat-form">
+            <input type="hidden" name="mode" value="@activeMode" id="newSessionMode" />
+            <button class="btn btn-accent w-100" type="submit">+ New chat</button>
+        </form>
+
+        <div class="session-list">
+            @if (sessions.Count == 0)
+            {
+                <div class="empty-hint">No conversations yet.</div>
+            }
+            @foreach (var s in sessions)
+            {
+                <a class="session @(s.Id == activeId ? "active" : "")"
+                   asp-action="Index" asp-route-sessionId="@s.Id">
+                    <span class="session-title">@s.Title</span>
+                    <span class="session-mode">@s.Mode</span>
+                </a>
+            }
+        </div>
+
+        <div class="sidebar-foot">
+            <form method="post" asp-controller="Account" asp-action="Logout">
+                <button class="linkish" type="submit">Sign out</button>
+            </form>
+        </div>
+    </aside>
+
+    <main class="main-pane">
+        <header class="topbar">
+            <button class="icon-btn only-mobile" id="openSidebar" aria-label="Menu">&#9776;</button>
+            <div class="mode-picker">
+                @foreach (var m in modeOptions)
+                {
+                    <button type="button"
+                            class="mode-btn @(m.key == activeMode ? "active" : "")"
+                            data-mode="@m.key"
+                            data-hint="@m.hint"
+                            title="@m.hint">@m.label</button>
+                }
+            </div>
+        </header>
+
+        <div class="thread" id="thread">
+            @if (turns.Count == 0)
+            {
+                <div class="empty-state">
+                    <h2>Pick a mode and start talking</h2>
+                    <p class="muted">This runs a 135M model on a 0.1&nbsp;CPU, so replies take a few seconds and the first one after a pause can take much longer while the model loads.</p>
+                </div>
+            }
+            @foreach (var t in turns)
+            {
+                <div class="row-@(t.Role)">
+                    <div class="bubble">@t.Content</div>
+                </div>
+            }
+            <div class="row-assistant" id="pending" hidden>
+                <div class="bubble" id="pendingBubble"></div>
+            </div>
+        </div>
+
+        <div class="status-strip" id="statusStrip" hidden></div>
+
+        <form class="composer" id="composer">
+            <textarea id="input" rows="1" placeholder="Send a message&hellip;"
+                      autocomplete="off" required></textarea>
+            <button type="button" class="icon-btn" id="stopBtn" title="Stop" hidden>&#9632;</button>
+            <button type="submit" class="send-btn" id="sendBtn" title="Send">&#8593;</button>
+        </form>
+    </main>
+</div>
+
+@if (activeId > 0)
+{
+    <form method="post" asp-action="DeleteSession" id="deleteForm" class="d-none">
+        <input type="hidden" name="id" value="@activeId" />
+    </form>
+}

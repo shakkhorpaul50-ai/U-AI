@@ -1,0 +1,21 @@
+@model RegisterViewModel
+@{
+    ViewData["Title"] = "Create account";
+}
+<div class="auth-shell">
+    <div class="auth-card">
+        <div class="auth-brand">U-AI</div>
+        <h1 class="auth-title">Create your account</h1>
+        <form method="post" asp-action="Register">
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+            <label class="form-label" for="Email">Email</label>
+            <input class="form-control" id="Email" asp-for="Email" autocomplete="username" required />
+            <label class="form-label mt-3" for="Password">Password</label>
+            <input class="form-control" id="Password" type="password" asp-for="Password" autocomplete="new-password" required />
+            <label class="form-label mt-3" for="ConfirmPassword">Confirm password</label>
+            <input class="form-control" id="ConfirmPassword" type="password" asp-for="ConfirmPassword" autocomplete="new-password" required />
+            <button class="btn btn-accent w-100 mt-4" type="submit">Create account</button>
+        </form>
+        <p class="auth-alt">Already registered? <a asp-action="Login">Sign in</a></p>
+    </div>
+</div>

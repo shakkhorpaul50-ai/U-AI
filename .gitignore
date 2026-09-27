@@ -1,0 +1,20 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/*.user
+**/.idea/
+**/node_modules/
+*.log
+appsettings.Local.json
+.env
+
+# Large local artefacts: never commit these.
+/data/
+/model/
+/model_int4.zip
+/Scaf/
+
+# The app's bundled model IS committed (86 MB, under GitHub's 100 MB file cap)
+# so the Render Docker build works with no download step.
+!/U-AI/model/
