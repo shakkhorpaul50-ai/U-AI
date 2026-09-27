@@ -286,15 +286,45 @@ a:hover { text-decoration: underline; }
 @media (max-width: 860px) {
   .chat-shell { grid-template-columns: 1fr; }
   .only-mobile { display: inline-flex; align-items: center; justify-content: center; }
+
   .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: 270px;
+    width: min(300px, 84vw);
+    max-width: 84vw;
     z-index: 30;
-    transform: translateX(-100%);
-    transition: transform .2s ease;
+    transform: translateX(-102%);
+    transition: transform .22s ease;
+    height: 100dvh;
   }
   .sidebar.open { transform: translateX(0); }
   .scrim { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 20; }
-  .bubble { max-width: 88%; }
+
+  .topbar { padding: 8px 10px; gap: 8px; }
+  .mode-picker {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .mode-picker::-webkit-scrollbar { display: none; }
+  .mode-btn { flex: 0 0 auto; padding: 8px 14px; font-size: 14px; }
+
+  .thread { padding: 16px 10px; gap: 12px; }
+  .bubble { max-width: 92%; font-size: 15px; }
+  .empty-state { margin: 32px auto; padding: 0 8px; }
+
+  .composer { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); gap: 6px; }
+  .composer textarea {
+    font-size: 16px;   /* 16px stops iOS auto-zoom on focus */
+    padding: 10px 12px;
+  }
+  .icon-btn, .send-btn { width: 44px; height: 44px; font-size: 18px; }
+
+  .status-strip { padding: 6px 10px; }
+  .auth-card { padding: 24px 20px; }
+
+  /* While the drawer is open, the main pane can't be tapped through. */
+  body.menu-open .main-pane { pointer-events: none; }
 }

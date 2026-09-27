@@ -10,14 +10,13 @@
   var sendBtn = document.getElementById("sendBtn");
   var stopBtn = document.getElementById("stopBtn");
   var strip = document.getElementById("statusStrip");
-  var pending = document.getElementById("pending");
-  var pendingBubble = document.getElementById("pendingBubble");
   var sidebar = document.getElementById("sidebar");
   var modeHidden = document.getElementById("newSessionMode");
 
   var sessionId = parseInt(shell.dataset.session || "0", 10);
   var busy = false;
   var controller = null;
+  var liveRow = null, liveBubble = null, liveFull = "";
 
   // ---- mobile sidebar -------------------------------------------------
   function scrim() {
@@ -28,12 +27,14 @@
   function setMenu(open) {
     if (!sidebar) return;
     sidebar.classList.toggle("open", open);
+    document.body.classList.toggle("menu-open", open);
     scrim().style.display = open && window.innerWidth <= 860 ? "block" : "none";
   }
   var openBtn = document.getElementById("openSidebar");
   var closeBtn = document.getElementById("closeSidebar");
   if (openBtn) openBtn.addEventListener("click", function () { setMenu(true); });
   if (closeBtn) closeBtn.addEventListener("click", function () { setMenu(false); });
+  scrim().addEventListener("click", function () { setMenu(false); });
 
   // ---- mode switching -------------------------------------------------
   function setMode(mode) {
@@ -125,9 +126,16 @@
     input.value = "";
     input.style.height = "auto";
 
-    pending.hidden = false;
-    pendingBubble.className = "bubble cursor";
-    pendingBubble.textContent = "";
+    // The assistant row is created now and STAYS. Streaming appends into it;
+    // completion only removes the cursor. Nothing is ever hidden, so the
+    // reply is visible without a refresh.
+    liveFull = "";
+    liveRow = document.createElement("div");
+    liveRow.className = "row-assistant";
+    liveBubble = document.createElement("div");
+    liveBubble.className = "bubble cursor";
+    liveRow.appendChild(liveBubble);
+    thread.appendChild(liveRow);
     scrollDown();
     setBusy(true);
     status("Waiting for the model…");
@@ -154,11 +162,13 @@
         status("Failed: " + err.message);
       }
     }).finally(function () {
-      pending.hidden = true;
-      pendingBubble.className = "bubble";
+      // If the stream produced nothing (error/abort before first token),
+      // remove the empty row so it doesn't linger.
+      if (liveRow && !liveFull) liveRow.remove();
+      if (liveBubble) liveBubble.classList.remove("cursor");
+      liveRow = null; liveBubble = null;
       setBusy(false);
       controller = null;
-      renderExisting();
     });
   });
 
@@ -171,7 +181,6 @@
     var reader = body.getReader();
     var decoder = new TextDecoder();
     var buf = "";
-    var full = "";
 
     return new Promise(function (resolve, reject) {
       function pump() {
@@ -201,8 +210,8 @@
         try { ev = JSON.parse(payload); } catch (err) { return; }
 
         if (ev.t === "token" && ev.v) {
-          full += ev.v;
-          renderMarkdown(pendingBubble, full);
+          liveFull += ev.v;
+          if (liveBubble) renderMarkdown(liveBubble, liveFull);
           scrollDown();
           status("Generating…");
         } else if (ev.t === "queued") {
@@ -210,10 +219,11 @@
         } else if (ev.t === "error") {
           status("Error: " + (ev.v || "unknown"));
         } else if (ev.t === "done") {
-          if (full) {
-            pendingBubble.className = "bubble";
-            renderMarkdown(pendingBubble, full);
+          if (liveBubble && liveFull) {
+            liveBubble.classList.remove("cursor");
+            renderMarkdown(liveBubble, liveFull);
           }
+          scrollDown();
         }
       }
 
@@ -223,7 +233,7 @@
 
   // Re-render the server-side turns as markdown on load.
   function renderExisting() {
-    var rows = thread.querySelectorAll(".row-assistant:not(#pending) .bubble");
+    var rows = thread.querySelectorAll(".row-assistant .bubble");
     for (var i = 0; i < rows.length; i++) {
       var t = rows[i].textContent;
       if (t.indexOf("```") >= 0 || t.indexOf("`") >= 0) renderMarkdown(rows[i], t);
