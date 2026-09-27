@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using UAI.Data;
 using UAI.Services;
@@ -87,6 +89,25 @@ builder.Services.ConfigureApplicationCookie(o =>
 builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton<OnnxChatService>();
 
+// Per-IP fixed windows on the auth endpoints. This host is a home PC behind
+// a tunnel: no WAF, no Cloudflare shield, and a SHA256 password hasher.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddFixedWindowLimiter("auth-login", x =>
+    {
+        x.PermitLimit = 5;
+        x.Window = TimeSpan.FromMinutes(5);
+        x.QueueLimit = 0;
+    });
+    o.AddFixedWindowLimiter("auth-register", x =>
+    {
+        x.PermitLimit = 3;
+        x.Window = TimeSpan.FromHours(1);
+        x.QueueLimit = 0;
+    });
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -97,6 +118,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

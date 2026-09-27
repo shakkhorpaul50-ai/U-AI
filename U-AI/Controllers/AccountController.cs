@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using UAI.Data;
 using UAI.Models;
 
@@ -9,8 +10,18 @@ namespace UAI.Controllers;
 [AllowAnonymous]
 public sealed class AccountController(
     UserManager<AppUser> users,
-    SignInManager<AppUser> signIn) : Controller
+    SignInManager<AppUser> signIn,
+    IConfiguration config) : Controller
 {
+    /// <summary>
+    /// Optional invite gate. Set UAI__InviteCode (env: UAI__InviteCode or INVITE_CODE
+    /// via config) to require it. When unset, registration stays open for local dev.
+    /// </summary>
+    private string? RequiredInvite =>
+        config["UAI:InviteCode"] ?? Environment.GetEnvironmentVariable("INVITE_CODE");
+
+    private bool InviteRequired => !string.IsNullOrWhiteSpace(RequiredInvite);
+
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {
@@ -18,7 +29,7 @@ public sealed class AccountController(
         return View(new LoginViewModel { ReturnUrl = returnUrl });
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
+    [HttpPost, ValidateAntiForgeryToken, EnableRateLimiting("auth-login")]
     public async Task<IActionResult> Login(LoginViewModel m)
     {
         if (!ModelState.IsValid) return View(m);
@@ -42,11 +53,24 @@ public sealed class AccountController(
     }
 
     [HttpGet]
-    public IActionResult Register() => View(new RegisterViewModel());
+    public IActionResult Register()
+    {
+        ViewBag.InviteRequired = InviteRequired;
+        return View(new RegisterViewModel());
+    }
 
-    [HttpPost, ValidateAntiForgeryToken]
+    [HttpPost, ValidateAntiForgeryToken, EnableRateLimiting("auth-register")]
     public async Task<IActionResult> Register(RegisterViewModel m)
     {
+        ViewBag.InviteRequired = InviteRequired;
+
+        if (InviteRequired &&
+            !string.Equals(m.InviteCode?.Trim(), RequiredInvite, StringComparison.Ordinal))
+        {
+            ModelState.AddModelError("InviteCode", "A valid invite code is required.");
+            return View(m);
+        }
+
         if (!ModelState.IsValid) return View(m);
 
         var user = new AppUser { UserName = m.Email, Email = m.Email, EmailConfirmed = true };

@@ -1,0 +1,8 @@
+name = "uai-proxy"
+main = "proxy-worker.js"
+compatibility_date = "2026-09-27"
+workers_dev = true
+
+# UPSTREAM_URL is a secret, not a var — never commit the tunnel URL.
+# Set it after each tunnel (re)start with:
+#   echo https://xxx.trycloudflare.com | wrangler secret put UPSTREAM_URL

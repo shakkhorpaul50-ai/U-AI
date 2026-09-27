@@ -24,6 +24,9 @@ public sealed class RegisterViewModel
 
     [DataType(DataType.Password), Compare("Password")]
     public string ConfirmPassword { get; set; } = "";
+
+    /// <summary>Only validated when UAI:InviteCode (or INVITE_CODE) is configured.</summary>
+    public string? InviteCode { get; set; } = "";
 }
 
 public sealed record SessionSummary(long Id, string Title, string Mode, DateTimeOffset UpdatedAt);
