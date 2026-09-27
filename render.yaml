@@ -3,7 +3,7 @@ services:
     name: u-ai-web
     runtime: docker
     plan: free
-    dockerfilePath: ./U-AI/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: ./
     healthCheckPath: /healthz
     autoDeploy: true
