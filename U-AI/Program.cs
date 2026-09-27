@@ -40,7 +40,8 @@ static string NormalizeConnectionString(string? raw)
 
 var conn = NormalizeConnectionString(
     Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? builder.Configuration.GetConnectionString("Neon"));
+    ?? builder.Configuration.GetConnectionString("Neon")
+    ?? EmbeddedSecrets.GetDatabaseUrl());
 
 if (!string.IsNullOrWhiteSpace(conn))
 {
