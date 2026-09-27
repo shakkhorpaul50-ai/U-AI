@@ -18,17 +18,17 @@ public static class EmbeddedSecrets
 {
     // AES-256-CBC, PKCS7. IV is embedded (it was used exactly once, offline).
     private const string IvB64 =
-        "C+ukd+Pqaq1Tq9XNx8Id7A==";
+        "6fQFmsT0ElaipasbRmAtlw==";
 
     private const string CipherB64 =
-        "yJucV+r//V+g02Dl28qQh9+bYirmrtTgHtZ3rC2nUtA9VIkeeOY0JpbDvG/6nTh8HA2lfisp2Lsp" +
-        "ErKIyzOjPG7NgmwpiydVbOdtEkKB2PzBPQTWsG1t8NPahkUbTtoaVWs91GifMdL3Ppd6T0Tug5s" +
-        "d7lIUYZ9IXdb0sz1sTs4B8cgYKLAH/P9boto0SCFlFDa4GxSNqkSNUBYoCzZcnQ==";
+        "+MPLXHBQiPADdd/GOALXxeOLwZw/DE6ee4RJqNn1gLZ1GSqt3uElTxj/rVIqsL2CTCMIXLlDW3" +
+        "TDwIkPKxkHV1QM9MwLRFNRPSOnW4UvAQZdWvMv2r5Bcq8yj7jlK8Tne9Qvrz3LHre7sIkHkN/d" +
+        "Ewlz52SWrHCK7GSbGxU8qZ91raGV0I0V8AaInNNlu0BvoYYWKAr5mPjvM5ylMfEulA==";
 
     // 32-byte key in three differently-encoded chunks (hex, base64, xor-masked hex).
-    private const string KeyA_Hex = "662D917A0767D4B8F67264";
-    private const string KeyB_B64 = "6AvGLBjqM7hT3vA=";
-    private const string KeyC_XorHex = "7DF717876252A111442F";
+    private const string KeyA_Hex = "D02D270FC75FA47F7AFC25";
+    private const string KeyB_B64 = "o1V1sNvAcuTdKVU=";
+    private const string KeyC_XorHex = "7719E94135E12D717BEE";
     private const byte KeyC_Xor = 0x5A;
 
     private static string? _cached;
