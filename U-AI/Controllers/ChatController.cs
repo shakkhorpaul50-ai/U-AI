@@ -16,7 +16,8 @@ public sealed class ChatController(
     UserManager<AppUser> users,
     PollinationsChatService ai,
     QuotaService quota,
-    ILogger<ChatController> log) : Controller
+    ILogger<ChatController> log,
+    IConfiguration config) : Controller
 {
     private const int MaxNewTokens = 512;
 
@@ -57,6 +58,7 @@ public sealed class ChatController(
         ViewData["ActiveId"] = activeId;
         ViewData["ActiveMode"] = activeMode;
         ViewData["Busy"] = ai.Waiters;
+        ViewData["IsAdmin"] = AdminAccess.IsAdmin(config, user.Email);
         try { ViewData["Remaining"] = await quota.RemainingAsync(user.Id, ct); }
         catch { ViewData["Remaining"] = -1; }
         return View(ModeCatalog.All);

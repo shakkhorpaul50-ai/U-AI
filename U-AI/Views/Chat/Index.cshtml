@@ -20,7 +20,7 @@
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
-            <a class="brand" asp-controller="Chat" asp-action="Index">U-AI</a>
+            <a class="brand" asp-controller="Chat" asp-action="Index"><img src="~/img/logo.svg" alt="U-AI" class="brand-mark" asp-append-version="true" />U-AI</a>
             <button class="icon-btn only-mobile" id="closeSidebar" aria-label="Close menu">&times;</button>
         </div>
 
@@ -45,6 +45,10 @@
         </div>
 
         <div class="sidebar-foot">
+            @if ((bool)(ViewData["IsAdmin"] ?? false))
+            {
+                <div style="margin-bottom:8px;"><a class="linkish" asp-controller="Admin" asp-action="Users">Admin quotas</a></div>
+            }
             <form method="post" asp-controller="Account" asp-action="Logout">
                 <button class="linkish" type="submit">Sign out</button>
             </form>

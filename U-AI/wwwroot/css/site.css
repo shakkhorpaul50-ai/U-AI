@@ -120,7 +120,11 @@ a:hover { text-decoration: underline; }
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
 }
-.brand { font-weight: 700; color: var(--text); }
+.brand { font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 9px; }
+.brand:hover { text-decoration: none; color: var(--text); }
+.brand-mark { width: 28px; height: 28px; flex: 0 0 auto; }
+.auth-brand { text-align: center; }
+.auth-logo { width: 64px; height: 64px; }
 .new-chat-form { padding: 14px 16px 8px; }
 .session-list { flex: 1; overflow-y: auto; padding: 6px 8px; }
 .session {

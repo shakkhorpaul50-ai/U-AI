@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="U-AI logo">
+  <defs>
+    <linearGradient id="uGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2f80ed"/>
+      <stop offset="0.55" stop-color="#1f9fd8"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+    <radialGradient id="nodeGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#d8f6ff"/>
+      <stop offset="0.45" stop-color="#4ccdf5"/>
+      <stop offset="1" stop-color="#2f80ed" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- U body -->
+  <path d="M22 12 V56 A28 28 0 0 0 78 56 V34"
+        fill="none" stroke="url(#uGrad)" stroke-width="13" stroke-linecap="round"/>
+  <!-- gloss streak on the left stroke -->
+  <path d="M22 22 V48" fill="none" stroke="#ffffff"
+        stroke-opacity="0.35" stroke-width="3" stroke-linecap="round"/>
+  <!-- arrow tip on the right stroke -->
+  <path d="M78 10 L88 30 L78 25.5 L68 30 Z" fill="#10b981"/>
+
+  <!-- neural spokes -->
+  <g stroke="#2f80ed" stroke-width="2" stroke-linecap="round">
+    <line x1="58" y1="52" x2="66" y2="52"/>
+    <line x1="55.7" y1="57.7" x2="61.3" y2="63.3"/>
+    <line x1="50" y1="60" x2="50" y2="68"/>
+    <line x1="44.3" y1="57.7" x2="38.7" y2="63.3"/>
+    <line x1="42" y1="52" x2="34" y2="52"/>
+    <line x1="44.3" y1="46.3" x2="38.7" y2="40.7"/>
+    <line x1="50" y1="44" x2="50" y2="36"/>
+    <line x1="55.7" y1="46.3" x2="61.3" y2="40.7"/>
+  </g>
+  <g fill="#2f80ed">
+    <circle cx="66" cy="52" r="2.6"/>
+    <circle cx="61.3" cy="63.3" r="2.6"/>
+    <circle cx="50" cy="68" r="2.6"/>
+    <circle cx="38.7" cy="63.3" r="2.6"/>
+    <circle cx="34" cy="52" r="2.6"/>
+    <circle cx="38.7" cy="40.7" r="2.6"/>
+    <circle cx="50" cy="36" r="2.6"/>
+    <circle cx="61.3" cy="40.7" r="2.6"/>
+  </g>
+  <!-- glowing core -->
+  <circle cx="50" cy="52" r="11" fill="url(#nodeGlow)"/>
+  <circle cx="50" cy="52" r="5" fill="#eafcff"/>
+</svg>

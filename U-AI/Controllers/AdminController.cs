@@ -21,15 +21,8 @@ public sealed class AdminController(
     /// <summary>Built-in owner. Always admin, no env var needed.</summary>
     private static readonly string[] BuiltInAdmins = ["shakkhorpaul50@gmail.com"];
 
-    private bool IsAdmin(AppUser u)
-    {
-        if (BuiltInAdmins.Contains(u.Email ?? "", StringComparer.OrdinalIgnoreCase))
-            return true;
-        var raw = config["Admin:Emails"] ?? Environment.GetEnvironmentVariable("ADMIN_EMAILS") ?? "";
-        var allowed = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return allowed.Length > 0 &&
-               allowed.Contains(u.Email ?? "", StringComparer.OrdinalIgnoreCase);
-    }
+    private bool IsAdmin(AppUser u) =>
+        AdminAccess.IsAdmin(config, u.Email);
 
     public sealed class Row
     {
