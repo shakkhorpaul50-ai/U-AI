@@ -18,7 +18,13 @@ public static class CreatorAnswers
         "who created you", "who create you", "who is your creator",
         "who made you", "who built you", "who developed you",
         "who were you created by", "your creator", "your developer",
-        "your maker", "shakkhor",
+        "your maker", "your owner", "who owns you",
+        "who programmed you", "who coded you",
+        "who made this app", "who built this app", "who developed this app",
+        "who created this app", "who made this website", "who made this site",
+        "who made this chatbot", "who is the developer", "who is the creator",
+        "created this app", "made this app",
+        "shakkhor",
     ];
 
     public static bool TryMatch(string message, out string? reply)
