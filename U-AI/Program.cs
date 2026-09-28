@@ -87,7 +87,8 @@ builder.Services.ConfigureApplicationCookie(o =>
 });
 
 builder.Services.AddControllersWithViews();
-builder.Services.AddSingleton<OnnxChatService>();
+builder.Services.AddSingleton<PollinationsChatService>();
+builder.Services.AddScoped<QuotaService>();
 
 // Per-IP fixed windows on the auth endpoints. This host is a home PC behind
 // a tunnel: no WAF, no Cloudflare shield, and a SHA256 password hasher.
@@ -132,17 +133,39 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         // Neon scales to zero after 5 min; the first query can be slow or fail.
+        // Also tolerates a DB created by an older schema (tables exist, history doesn't).
         app.Logger.LogWarning(ex, "Database unavailable at startup; continuing");
+    }
+
+    // Belt-and-suspenders: quota tables must exist even when MigrateAsync above
+    // throws halfway (e.g. legacy tables present, history out of sync).
+    // IF NOT EXISTS makes this a safe no-op on healthy databases.
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "UserQuota" (
+                "UserId" text NOT NULL PRIMARY KEY REFERENCES "AspNetUsers" ("Id") ON DELETE CASCADE,
+                "DailyLimit" integer NULL,
+                "UpdatedAt" timestamptz NOT NULL);
+            CREATE TABLE IF NOT EXISTS "UserUsage" (
+                "UserId" text NOT NULL REFERENCES "AspNetUsers" ("Id") ON DELETE CASCADE,
+                "Date" date NOT NULL,
+                "Count" integer NOT NULL,
+                CONSTRAINT "PK_UserUsage" PRIMARY KEY ("UserId", "Date"));
+            """);
+        app.Logger.LogInformation("Quota tables ensured");
+    }
+    catch (Exception ex)
+    {
+        // Quota enforcement fails open (see ChatController); chat still works.
+        app.Logger.LogWarning(ex, "Quota tables not ensured; quota will fail open");
     }
 }
 
-// Resolve the singleton from the root provider (safe: singletons outlive
-// a scope) so the warm-up task never touches a disposed scope.
-var ai = app.Services.GetRequiredService<OnnxChatService>();
-_ = Task.Run(() => ai.EnsureLoaded());
-
+// No model warm-up: inference lives behind the gateway, nothing to load.
 // Must answer fast: Render polls this and restarts containers that stall.
-app.MapGet("/healthz", (OnnxChatService svc) => Results.Json(new
+app.MapGet("/healthz", (PollinationsChatService svc) => Results.Json(new
 {
     ok = true,
     model = svc.IsReady ? "ready" : svc.LoadFailed ? "failed" : "loading",

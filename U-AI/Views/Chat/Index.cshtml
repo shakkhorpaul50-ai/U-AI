@@ -54,6 +54,10 @@
     <main class="main-pane">
         <header class="topbar">
             <button class="icon-btn only-mobile" id="openSidebar" aria-label="Menu">&#9776;</button>
+            @if ((int)(ViewData["Remaining"] ?? -1) >= 0)
+            {
+                <span class="remaining" title="Billable replies left today (cached answers don't count)">@ViewData["Remaining"] left</span>
+            }
             <div class="mode-picker">
                 @foreach (var m in modeOptions)
                 {

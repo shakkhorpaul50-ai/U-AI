@@ -14,9 +14,11 @@ namespace UAI.Controllers;
 public sealed class ChatController(
     AppDbContext db,
     UserManager<AppUser> users,
-    OnnxChatService ai) : Controller
+    PollinationsChatService ai,
+    QuotaService quota,
+    ILogger<ChatController> log) : Controller
 {
-    private const int MaxNewTokens = PromptBuilder.ContextWindow - PromptBuilder.ReserveForOutput;
+    private const int MaxNewTokens = 512;
 
     [HttpGet]
     public async Task<IActionResult> Index(long? sessionId, CancellationToken ct)
@@ -55,6 +57,8 @@ public sealed class ChatController(
         ViewData["ActiveId"] = activeId;
         ViewData["ActiveMode"] = activeMode;
         ViewData["Busy"] = ai.Waiters;
+        try { ViewData["Remaining"] = await quota.RemainingAsync(user.Id, ct); }
+        catch { ViewData["Remaining"] = -1; }
         return View(ModeCatalog.All);
     }
 
@@ -99,8 +103,8 @@ public sealed class ChatController(
     }
 
     /// <summary>
-    /// Streams a reply as Server-Sent Events. One generation at a time process-wide,
-    /// so extra requests queue behind the gate and the client shows a waiting state.
+    /// Streams a reply as Server-Sent Events. Inference runs behind the gateway,
+    /// so concurrent requests proxy independently; per-user quota guards the pipe.
     /// </summary>
     [HttpPost]
     public async Task Send([FromBody] SendRequest req, CancellationToken ct)
@@ -130,8 +134,6 @@ public sealed class ChatController(
         session.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
-        var prompt = PromptBuilder.Build(session.Mode, history, req.Message);
-
         Response.StatusCode = StatusCodes.Status200OK;
         Response.ContentType = "text/event-stream; charset=utf-8";
         Response.Headers.CacheControl = "no-cache, no-transform";
@@ -149,9 +151,76 @@ public sealed class ChatController(
 
         await Emit(JsonSerializer.Serialize(new { t = "queued", waiting = ai.Waiters }));
 
+        // Identity questions never reach the model: answered instantly and
+        // identically in every mode, with zero inference cost.
+        if (CreatorAnswers.TryMatch(req.Message, out var canned) && canned is not null)
+        {
+            var cannedSb = new StringBuilder();
+            try
+            {
+                foreach (var word in canned.Split(' '))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var piece = word + " ";
+                    cannedSb.Append(piece);
+                    await Emit(JsonSerializer.Serialize(new { t = "token", v = piece }));
+                    await Task.Delay(12, ct);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Stopped mid-reply: keep the partial text below.
+            }
+
+            var cannedText = cannedSb.ToString().Trim();
+            if (cannedText.Length > 0)
+            {
+                db.ChatMessages.Add(new ChatMessage
+                {
+                    SessionId = session.Id,
+                    Role = "assistant",
+                    Content = cannedText,
+                });
+                session.UpdatedAt = DateTimeOffset.UtcNow;
+                try { await db.SaveChangesAsync(CancellationToken.None); } catch { /* best effort */ }
+            }
+
+            await Emit(JsonSerializer.Serialize(new { t = "done", saved = cannedText.Length > 0 }));
+            return;
+        }
+
+        // Fairness gates: burst first (cheap), then a billable daily unit.
+        // Cached and deterministic answers never reach here, so they never count.
+        // Both gates fail OPEN on infrastructure errors: a missing quota table
+        // must never take chat offline.
+        if (!quota.CheckBurst(user.Id))
+        {
+            await Emit(JsonSerializer.Serialize(new { t = "limited", v = "Slow down — one message every 20 seconds." }));
+            await Emit(JsonSerializer.Serialize(new { t = "done", saved = false }));
+            return;
+        }
+
+        var quotaEnforced = true;
         try
         {
-            await ai.GenerateAsync(prompt, MaxNewTokens, async ev =>
+            var (allowed, limit) = await quota.TryReserveAsync(user.Id, ct);
+            if (!allowed)
+            {
+                await Emit(JsonSerializer.Serialize(new { t = "limited", v = $"Daily limit reached ({limit}/day). Back tomorrow 00:00 UTC." }));
+                await Emit(JsonSerializer.Serialize(new { t = "done", saved = false }));
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            quotaEnforced = false;
+            log.LogWarning(ex, "Quota check failed open for user {UserId}", user.Id);
+        }
+
+        var reserved = true;
+        try
+        {
+            await ai.GenerateAsync(session.Mode, history, req.Message, MaxNewTokens, async ev =>
             {
                 if (ev.Text is { Length: > 0 })
                 {
@@ -171,6 +240,16 @@ public sealed class ChatController(
         catch (Exception ex)
         {
             await Emit(JsonSerializer.Serialize(new { t = "error", v = "Generation failed: " + Trim(ex.Message) }));
+        }
+        finally
+        {
+            // Refund the reservation when nothing was produced (provider error
+            // before first token). Partial streams stay billed.
+            if (sb.Length == 0 && reserved && quotaEnforced)
+            {
+                reserved = false;
+                await quota.ReleaseAsync(user.Id);
+            }
         }
 
         var text = sb.ToString().Trim();

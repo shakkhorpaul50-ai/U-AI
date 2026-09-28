@@ -8,6 +8,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
 {
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<UserQuota> UserQuotas => Set<UserQuota>();
+    public DbSet<UserUsage> UserUsages => Set<UserUsage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -35,6 +37,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
             e.HasOne(x => x.Session)
              .WithMany(s => s.Messages)
              .HasForeignKey(x => x.SessionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<UserQuota>(e =>
+        {
+            e.HasKey(x => x.UserId);
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<UserUsage>(e =>
+        {
+            e.HasKey(x => new { x.UserId, x.Date });
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }

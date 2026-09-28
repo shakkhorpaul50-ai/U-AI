@@ -89,7 +89,16 @@
         html += blocks[i]
           .split(/\n{2,}/)
           .filter(function (p) { return p.trim().length; })
-          .map(function (p) { return "<p>" + p.replace(/\n/g, "<br/>").replace(/`([^`]+)`/g, "<code>$1</code>") + "</p>"; })
+          .map(function (p) {
+            // Split on inline code first so URLs/bold inside `...` stay literal.
+            var parts = p.split(/(`[^`]+`)/g).map(function (seg, idx) {
+              if (idx % 2 === 1) return "<code>" + seg.slice(1, -1) + "</code>";
+              return seg
+                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+                .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+            }).join("");
+            return "<p>" + parts.replace(/\n/g, "<br/>") + "</p>";
+          })
           .join("");
       }
     }
@@ -218,6 +227,11 @@
           status(ev.waiting > 1 ? "Queued — one generation at a time on this host." : "Waiting for the model…");
         } else if (ev.t === "error") {
           status("Error: " + (ev.v || "unknown"));
+        } else if (ev.t === "limited") {
+          status(ev.v || "Limit reached. Try again later.");
+          if (liveRow && !liveFull) liveRow.remove();
+          if (liveBubble) liveBubble.classList.remove("cursor");
+          liveRow = null; liveBubble = null;
         } else if (ev.t === "done") {
           if (liveBubble && liveFull) {
             liveBubble.classList.remove("cursor");
