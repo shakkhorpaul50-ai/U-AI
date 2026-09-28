@@ -10,6 +10,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<UserQuota> UserQuotas => Set<UserQuota>();
     public DbSet<UserUsage> UserUsages => Set<UserUsage>();
+    public DbSet<UserHourlyUsage> UserHourlyUsages => Set<UserHourlyUsage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -52,6 +53,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         b.Entity<UserUsage>(e =>
         {
             e.HasKey(x => new { x.UserId, x.Date });
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<UserHourlyUsage>(e =>
+        {
+            e.HasKey(x => new { x.UserId, x.Hour });
             e.HasOne(x => x.User)
              .WithMany()
              .HasForeignKey(x => x.UserId)

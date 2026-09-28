@@ -1,26 +1,30 @@
 @model IReadOnlyList<UAI.Controllers.AdminController.Row>
 @{
     ViewData["Title"] = "User quotas";
-    var def = (int)(ViewData["DefaultDaily"] ?? 50);
+    var def = (int)(ViewData["DefaultDaily"] ?? 1000);
+    var defH = (int)(ViewData["DefaultHourly"] ?? 100);
 }
 <div class="auth-shell" style="align-items:start; padding-top:48px;">
     <div class="auth-card wide">
         <div class="auth-brand">U-AI admin</div>
-        <h1 class="auth-title">Per-user daily quotas</h1>
-        <p class="muted">Blank = global default (@def/day). Usage resets 00:00 UTC. Cached and deterministic answers never count.</p>
+        <h1 class="auth-title">Per-user quotas</h1>
+        <p class="muted">Blank = global default (@defH/hour, @def/day). Daily resets 00:00 UTC. Cached and deterministic answers never count.</p>
         <table class="table table-dark table-sm align-middle">
-            <thead><tr><th>User</th><th>Used today</th><th>Daily limit</th><th></th></tr></thead>
+            <thead><tr><th>User</th><th>Hour / Day used</th><th>Limits: hourly / daily</th><th></th></tr></thead>
             <tbody>
             @foreach (var r in Model)
             {
                 <tr>
                     <td class="small">@r.Email</td>
-                    <td>@r.UsedToday</td>
+                    <td>@r.UsedHour / @r.UsedToday</td>
                     <td>
                         <form method="post" asp-action="SetLimit" class="d-flex gap-2">
                             <input type="hidden" name="userId" value="@r.UserId" />
+                            <input type="number" name="hourlyLimit" class="form-control form-control-sm"
+                                   style="max-width:90px" min="1" max="10000"
+                                   value="@(r.HourlyLimit?.ToString() ?? "")" placeholder="@defH" />
                             <input type="number" name="dailyLimit" class="form-control form-control-sm"
-                                   style="max-width:110px" min="1" max="10000"
+                                   style="max-width:90px" min="1" max="10000"
                                    value="@(r.DailyLimit?.ToString() ?? "")" placeholder="@def" />
                             <button class="btn btn-accent btn-sm" type="submit">Set</button>
                         </form>

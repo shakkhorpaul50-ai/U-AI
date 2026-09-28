@@ -203,9 +203,18 @@ public sealed class ChatController(
         var quotaEnforced = true;
         try
         {
+            var (allowedHourly, hourlyLimit) = await quota.TryReserveHourlyAsync(user.Id, ct);
+            if (!allowedHourly)
+            {
+                await Emit(JsonSerializer.Serialize(new { t = "limited", v = $"Hourly limit reached ({hourlyLimit}/hour). Try again next hour." }));
+                await Emit(JsonSerializer.Serialize(new { t = "done", saved = false }));
+                return;
+            }
+
             var (allowed, limit) = await quota.TryReserveAsync(user.Id, ct);
             if (!allowed)
             {
+                await quota.ReleaseHourlyAsync(user.Id);
                 await Emit(JsonSerializer.Serialize(new { t = "limited", v = $"Daily limit reached ({limit}/day). Back tomorrow 00:00 UTC." }));
                 await Emit(JsonSerializer.Serialize(new { t = "done", saved = false }));
                 return;
@@ -243,12 +252,13 @@ public sealed class ChatController(
         }
         finally
         {
-            // Refund the reservation when nothing was produced (provider error
+            // Refund both reservations when nothing was produced (provider error
             // before first token). Partial streams stay billed.
             if (sb.Length == 0 && reserved && quotaEnforced)
             {
                 reserved = false;
                 await quota.ReleaseAsync(user.Id);
+                await quota.ReleaseHourlyAsync(user.Id);
             }
         }
 

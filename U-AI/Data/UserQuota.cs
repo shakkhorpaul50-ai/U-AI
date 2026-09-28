@@ -7,6 +7,7 @@ public sealed class UserQuota
 {
     public string UserId { get; set; } = "";
     public int? DailyLimit { get; set; }
+    public int? HourlyLimit { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public AppUser User { get; set; } = null!;
@@ -17,6 +18,16 @@ public sealed class UserUsage
 {
     public string UserId { get; set; } = "";
     public DateOnly Date { get; set; }
+    public int Count { get; set; }
+
+    public AppUser User { get; set; } = null!;
+}
+
+/// <summary>Billable upstream calls per user per UTC hour. Gates the hourly cap.</summary>
+public sealed class UserHourlyUsage
+{
+    public string UserId { get; set; } = "";
+    public DateTime Hour { get; set; }
     public int Count { get; set; }
 
     public AppUser User { get; set; } = null!;

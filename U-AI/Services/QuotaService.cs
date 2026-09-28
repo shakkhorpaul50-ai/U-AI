@@ -16,6 +16,7 @@ public sealed class QuotaService
 {
     private readonly AppDbContext _db;
     private readonly int _defaultDaily;
+    private readonly int _defaultHourly;
     private readonly int _defaultPerMinute;
     private readonly ConcurrentDictionary<string, List<DateTime>> _bursts = new();
     private static readonly TimeSpan BurstWindow = TimeSpan.FromSeconds(60);
@@ -23,17 +24,32 @@ public sealed class QuotaService
     public QuotaService(AppDbContext db, IConfiguration config)
     {
         _db = db;
-        _defaultDaily = int.TryParse(config["Quota:DefaultDaily"], out var d) && d > 0 ? d : 50;
+        _defaultDaily = int.TryParse(config["Quota:DefaultDaily"], out var d) && d > 0 ? d : 1000;
+        _defaultHourly = int.TryParse(config["Quota:DefaultHourly"], out var h) && h > 0 ? h : 100;
         _defaultPerMinute = int.TryParse(config["Quota:DefaultPerMinute"], out var m) && m > 0 ? m : 3;
     }
 
     public int DefaultDaily => _defaultDaily;
+    public int DefaultHourly => _defaultHourly;
+
+    private static DateTime CurrentHourUtc()
+    {
+        var now = DateTime.UtcNow;
+        return new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
+    }
 
     public async Task<int> GetLimitAsync(string userId, CancellationToken ct = default)
     {
         var row = await _db.UserQuotas.AsNoTracking()
             .FirstOrDefaultAsync(q => q.UserId == userId, ct).ConfigureAwait(false);
         return row?.DailyLimit is > 0 ? row.DailyLimit.Value : _defaultDaily;
+    }
+
+    public async Task<int> GetHourlyLimitAsync(string userId, CancellationToken ct = default)
+    {
+        var row = await _db.UserQuotas.AsNoTracking()
+            .FirstOrDefaultAsync(q => q.UserId == userId, ct).ConfigureAwait(false);
+        return row?.HourlyLimit is > 0 ? row.HourlyLimit.Value : _defaultHourly;
     }
 
     /// <summary>Sliding-window burst check. Returns false when over the per-minute cap.</summary>
@@ -86,14 +102,55 @@ public sealed class QuotaService
         catch { /* best effort */ }
     }
 
+    /// <summary>
+    /// Atomically reserves one hourly unit. Returns (allowed, limit).
+    /// </summary>
+    public async Task<(bool allowed, int limit)> TryReserveHourlyAsync(string userId, CancellationToken ct = default)
+    {
+        var limit = await GetHourlyLimitAsync(userId, ct).ConfigureAwait(false);
+        var hour = CurrentHourUtc();
+
+        var count = await _db.Database.SqlQuery<int>(
+                $"INSERT INTO \"UserHourlyUsage\" (\"UserId\", \"Hour\", \"Count\") VALUES ({userId}, {hour}, 1) ON CONFLICT (\"UserId\", \"Hour\") DO UPDATE SET \"Count\" = \"UserHourlyUsage\".\"Count\" + 1 RETURNING \"Count\"")
+            .SingleAsync(ct).ConfigureAwait(false);
+
+        if (count > limit)
+        {
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE \"UserHourlyUsage\" SET \"Count\" = GREATEST(\"Count\" - 1, 0) WHERE \"UserId\" = {0} AND \"Hour\" = {1}",
+                [userId, hour]).ConfigureAwait(false);
+            return (false, limit);
+        }
+        return (true, limit);
+    }
+
+    /// <summary>Refunds one hourly unit.</summary>
+    public async Task ReleaseHourlyAsync(string userId, CancellationToken ct = default)
+    {
+        var hour = CurrentHourUtc();
+        try
+        {
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE \"UserHourlyUsage\" SET \"Count\" = GREATEST(\"Count\" - 1, 0) WHERE \"UserId\" = {0} AND \"Hour\" = {1}",
+                [userId, hour]).ConfigureAwait(false);
+        }
+        catch { /* best effort */ }
+    }
+
     public async Task<int> RemainingAsync(string userId, CancellationToken ct = default)
     {
-        var limit = await GetLimitAsync(userId, ct).ConfigureAwait(false);
+        var dailyLimit = await GetLimitAsync(userId, ct).ConfigureAwait(false);
+        var hourlyLimit = await GetHourlyLimitAsync(userId, ct).ConfigureAwait(false);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var used = await _db.UserUsages.AsNoTracking()
+        var hour = CurrentHourUtc();
+        var usedDaily = await _db.UserUsages.AsNoTracking()
             .Where(u => u.UserId == userId && u.Date == today)
             .Select(u => u.Count)
             .FirstOrDefaultAsync(ct).ConfigureAwait(false);
-        return Math.Max(0, limit - used);
+        var usedHourly = await _db.UserHourlyUsages.AsNoTracking()
+            .Where(u => u.UserId == userId && u.Hour == hour)
+            .Select(u => u.Count)
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        return Math.Max(0, Math.Min(dailyLimit - usedDaily, hourlyLimit - usedHourly));
     }
 }
